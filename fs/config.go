@@ -144,6 +144,7 @@ type ConfigInfo struct {
 	Metadata                bool
 	ServerSideAcrossConfigs bool
 	TerminalColorMode       TerminalColorMode
+	UsePKCS11Token          bool
 }
 
 // NewConfig creates a new config with everything set to the default

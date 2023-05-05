@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -15,8 +16,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ThalesIgnite/crypto11"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/accounting"
+	"github.com/rclone/rclone/fs/config"
 	"github.com/rclone/rclone/lib/structs"
 	"golang.org/x/net/publicsuffix"
 )
@@ -61,7 +64,26 @@ func NewTransportCustom(ctx context.Context, customize func(*http.Transport)) ht
 	}
 
 	// Load client certs
-	if ci.ClientCert != "" || ci.ClientKey != "" {
+	if ci.UsePKCS11Token {
+		var cfg = crypto11.Config{
+			Path:       "C:\\Program Files\\OpenSC Project\\OpenSC\\pkcs11\\opensc-pkcs11.dll",
+			TokenLabel: "mkfssion@mkfssion.com",
+		}
+		_, _ = fmt.Fprint(os.Stderr, "Please enter security key PIN: ")
+		cfg.Pin = config.ReadPassword()
+		ctx, err := crypto11.Configure(&cfg)
+		if err != nil {
+			log.Fatalf("Failed to initialize crypto11 library: %v", err)
+		}
+		certs, err := ctx.FindAllPairedCertificates()
+		if err != nil {
+			log.Fatalf("Failed to find paired certificates: %v", err)
+		}
+		if len(certs) == 0 {
+			log.Fatalf("No suitable certificate pairs found in the token")
+		}
+		t.TLSClientConfig.Certificates = certs
+	} else if ci.ClientCert != "" || ci.ClientKey != "" {
 		if ci.ClientCert == "" || ci.ClientKey == "" {
 			log.Fatalf("Both --client-cert and --client-key must be set")
 		}
